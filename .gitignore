@@ -1,0 +1,18 @@
+# Secrets and Config
+.env
+
+# Python internals
+__pycache__/
+*.py[cod]
+
+# IDE settings
+.vscode/
+
+# Logs and Temp files
+logs/
+temp_*.pdf
+uploads/
+
+# Environment
+venv/
+hms/  # (If 'hms' is your virtual environment folder)

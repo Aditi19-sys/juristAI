@@ -1,0 +1,14 @@
+{
+  "name": "default",
+  "type": "vectorSearch",
+  "database": "juristway-ai",
+  "collectionName": "knowledge_base",
+  "fields": [
+    {
+      "type": "vector",
+      "path": "embedding",
+      "numDimensions": 768,
+      "similarity": "cosine"
+    }
+  ]
+}
