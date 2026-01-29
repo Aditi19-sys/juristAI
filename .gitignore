@@ -12,7 +12,12 @@ __pycache__/
 logs/
 temp_*.pdf
 uploads/
+juristway_app.log
 
 # Environment
-venv/
 hms/  # (If 'hms' is your virtual environment folder)
+
+pi.py 
+seed_db.py 
+test_search.py
+test.py 

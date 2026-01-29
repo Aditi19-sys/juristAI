@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, BeforeValidator, EmailStr
+from pydantic import BaseModel, ConfigDict, Field, BeforeValidator, EmailStr
 from typing import Optional, Annotated, List, Dict, Any
 from datetime import datetime, timezone
 from enum import Enum
@@ -42,13 +42,14 @@ class DocumentStatus(str, Enum):
 # --- USER & AUTH MODELS ---
 
 class UserBase(BaseModel):
+    id: str = Field(alias="_id")
     email: EmailStr
     full_name: Optional[str] = None
     is_admin: bool = False
     status: UserStatus = UserStatus.ACTIVE
     subscription_tier: SubscriptionTier = SubscriptionTier.FREE
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-
+    model_config = ConfigDict(populate_by_name=True)
 # --- DASHBOARD & OVERVIEW MODELS ---
 
 class AdminOverview(BaseModel):
@@ -60,7 +61,9 @@ class AdminOverview(BaseModel):
     total_revenue: float
 
 # --- TOKEN USAGE ANALYSIS MODELS (New for Usage Tab) ---
-
+class TokenData(BaseModel):
+    email: Optional[str] = None
+    
 class UsageHeaderStats(BaseModel):
     total_tokens: int
     avg_daily: float

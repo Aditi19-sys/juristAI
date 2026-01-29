@@ -1,5 +1,5 @@
 {
-  "name": "default",
+  "name": "vector_index",
   "type": "vectorSearch",
   "database": "juristway-ai",
   "collectionName": "knowledge_base",
@@ -7,7 +7,7 @@
     {
       "type": "vector",
       "path": "embedding",
-      "numDimensions": 768,
+      "numDimensions": 3072,
       "similarity": "cosine"
     }
   ]

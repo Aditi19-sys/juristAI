@@ -2,7 +2,8 @@ import asyncio
 import os
 from services.ingestion.pdf_engine import PDFManager
 from core.database import get_knowledge_base_collection, connect_to_mongo
-
+from dotenv import load_dotenv
+load_dotenv()
 pdf_manager = PDFManager()
 
 async def process_document_job(job, vector_store):

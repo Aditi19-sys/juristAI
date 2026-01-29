@@ -2,7 +2,7 @@ from time import timezone
 from fastapi import APIRouter, Depends, HTTPException, status,  UploadFile, File, Form
 from typing import List, Optional
 from core.security import get_current_user_email
-from core.database import get_database, get_embedding_vector, get_plans_collection, get_subscriptions_collection, get_token_usage_collection, get_users_collection, get_documents_collection, get_knowledge_base_collection
+from core.database import get_database, get_embedding_vector, get_plans_collection, get_settings_collection, get_subscriptions_collection, get_token_usage_collection, get_users_collection, get_documents_collection, get_knowledge_base_collection
 from models.domain import ContentLibraryStats, DocumentStatus, SubscriptionResponse, SubscriptionTier, SystemSettings, UserBase, UserStatus
 from fastapi import UploadFile, File
 from bson import ObjectId
@@ -188,7 +188,6 @@ async def search_users(
 
 
 # This retrieves the full record for a specific user to be displayed in a "User Details" modal.
-
 @router.get("/admin/users/{user_id}", response_model=UserBase)
 async def get_user_by_id(user_id: str, current_admin: str = Depends(admin_required)):
     """Fetch full details for a single user by their unique ID."""
@@ -210,6 +209,31 @@ async def get_user_by_id(user_id: str, current_admin: str = Depends(admin_requir
     return pydantic_dict(user)
 
 
+@router.put("/users/{user_id}")
+async def update_user(
+    user_id: str,
+    name: Optional[str] = Form(None),
+    email: Optional[str] = Form(None),
+    plan: Optional[str] = Form(None),
+    current_user: dict = Depends(admin_required)
+):
+    """Update user details"""
+    db =  get_database()
+    
+    update_data = {}
+    if name:
+        update_data["name"] = name
+    if email:
+        update_data["email"] = email
+    if plan:
+        # Update tokens based on plan
+        if plan == "Free":
+            update_data["tokens_remaining"] = 10000
+        elif plan == "Pro":
+            update_data["tokens_remaining"] = 100000
+        elif plan == "Enterprise":
+            update_data["tokens_remaining"] = 500000
+    
 # These endpoints allow you to take direct action on an account, such as banning a user or promoting them to an administrator.
 @router.patch("/users/{user_id}/status")
 async def update_user_account_status(
@@ -276,13 +300,11 @@ async def delete_user_account(user_id: str, current_admin: str = Depends(admin_r
     except InvalidId:
         raise HTTPException(status_code=400, detail="Invalid User ID format")
 
-    result = await users_coll.delete_one({"_id": obj_id})
+    await users_coll.users.delete_one({"_id": ObjectId(user_id)})
+    await users_coll.subscriptions.delete_many({"user_id": user_id})
+    await users_coll.token_usage.delete_many({"user_id": user_id})
     
-    if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="User not found")
-        
-    return {"message": "User account successfully deleted"}
-
+    return {"message": "User deleted successfully"}
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -635,9 +657,24 @@ async def upload_admin_document(
         await docs_coll.update_one({"_id": ObjectId(doc_id)}, {"$set": {"status": DocumentStatus.FAILED}})
         raise HTTPException(status_code=500, detail=str(e))
     
+@router.delete("/contentlibrary/documents")
+async def delete_all_documents(current_admin: str = Depends(admin_required)):
+    """Permanently removes ALL documents and ALL knowledge base vectors."""
+
+    docs_coll = get_documents_collection()
+    kb_coll = get_knowledge_base_collection()
+
+    docs_result = await docs_coll.delete_many({})
+    kb_result = await kb_coll.delete_many({})
+
+    return {
+        "message": "All documents and knowledge base entries deleted successfully.",
+        "documents_deleted": docs_result.deleted_count,
+        "chunks_deleted": kb_result.deleted_count,
+    }
 
 
-@router.delete("/content-library/documents/{doc_id}")
+@router.delete("/contentlibrary/documents/{doc_id}")
 async def delete_document(doc_id: str, current_admin: str = Depends(admin_required)):
     """Permanently removes document metadata and all associated vector chunks."""
     docs_coll = get_documents_collection()
@@ -662,7 +699,7 @@ async def delete_document(doc_id: str, current_admin: str = Depends(admin_requir
 @router.get("/settings", response_model=SystemSettings)
 async def get_admin_settings(current_admin: str = Depends(admin_required)):
     """Retrieves the global system settings from MongoDB."""
-    settings_coll = get_database()["settings"]
+    settings_coll = get_settings_collection()
     
     # Find the single admin settings document
     settings_doc = await settings_coll.find_one({"type": "admin"})
@@ -670,11 +707,21 @@ async def get_admin_settings(current_admin: str = Depends(admin_required)):
     if not settings_doc:
         # Return default values if no settings document exists yet
         return {
-            "siteName": "Juristway AI", "siteUrl": "", "supportEmail": "admin@example.com",
-            "geminiApiKey": "", "openaiApiKey": "", "maxTokensPerRequest": 4000,
-            "emailNotifications": True, "newUserEmail": True, "subscriptionEmail": True,
-            "enableTwoFactor": False, "sessionTimeout": 30, "maxLoginAttempts": 5,
-            "backupEnabled": True, "backupFrequency": "Daily", "dataRetention": 90
+            "siteName": "Juristway AI",
+            "siteUrl": "https://juristwayai.com",
+            "supportEmail": "support@juristwayai.com",
+            "geminiApiKey": "",
+            "openaiApiKey": "",
+            "maxTokensPerRequest": 4000,
+            "emailNotifications": True,
+            "newUserEmail": True,
+            "subscriptionEmail": True,
+            "enableTwoFactor": False,
+            "sessionTimeout": 30,
+            "maxLoginAttempts": 5,
+            "backupEnabled": True,
+            "backupFrequency": "daily",
+            "dataRetention": 90
         }
     
     return pydantic_dict(settings_doc)
@@ -687,11 +734,11 @@ async def save_admin_settings(
     current_admin: str = Depends(admin_required)
 ):
     """Updates the global system settings in the MongoDB 'settings' collection."""
-    settings_coll = get_database()["settings"]
+    settings_coll = get_settings_collection()
     
     # Convert Pydantic model to dictionary
-    settings_data = payload.dict()
-    settings_data["updated_at"] = datetime.utcnow()
+    settings_data = payload.model_dump()
+    settings_data["updated_at"] = datetime.now(timezone.utc)
     settings_data["type"] = "admin" # Ensure the document type stays consistent
 
     # Use find_one_and_update with upsert=True

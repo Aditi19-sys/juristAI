@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime, timezone
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from typing import List, Dict
@@ -8,13 +9,19 @@ from PIL import Image
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from core.config import settings
 from core.database import get_knowledge_base_collection 
-
+import os
+import pytesseract
+from dotenv import load_dotenv
+load_dotenv()
+# Add MacPorts bin to the path for the duration of this script
+os.environ["PATH"] += os.pathsep + '/opt/local/bin'
+os.environ['TESSDATA_PREFIX'] = '/opt/local/share/tessdata/'
 # Create a global executor to avoid repeated creation/destruction
 executor = ProcessPoolExecutor(max_workers=4)
 
 def ocr_worker(args):
     page_number, image = args
-    pytesseract.pytesseract.tesseract_cmd = r'c:\Program Files\Tesseractocr\tesseract.exe'
+    pytesseract.pytesseract.tesseract_cmd = r"/opt/local/bin/tesseract"
     text = pytesseract.image_to_string(image, lang="eng", config="--oem 3 --psm 6")
     return {"page": page_number, "text": text.strip()}
 
@@ -24,12 +31,15 @@ class PDFManager:
         self.overlap_ratio = overlap_ratio
         # Ensure the model dimension is 768 to match your Atlas Index
         self.embeddings = GoogleGenerativeAIEmbeddings(
-            model="models/embedding-001", 
-            google_api_key=settings.GEMINI_API_KEY
+            model="models/gemini-embedding-001",
+            google_api_key=settings.GEMINI_API_KEY,
+            index_name="vector_index",
+            output_dimensionality=3072,
+            task_type="retrieval_document"  # Embedding for document storage
         )
 
     def process_pdf(self, pdf_path: str) -> List[Dict]:
-        images = convert_from_path(pdf_path, dpi=150, poppler_path="c:\\poppler\\Library\\bin")
+        images = convert_from_path(pdf_path, dpi=150, poppler_path="/opt/local/bin")
         tasks = [(i + 1, img) for i, img in enumerate(images)]
         
         # Use the global executor instead of "with ProcessPoolExecutor..."
@@ -71,7 +81,7 @@ class PDFManager:
         return [
             {
                 "page_num": c["metadata"]["page"], 
-                "chunk_text": c["text"], 
+                "text": c["text"], 
                 "embedding": v # Must match the 'path' in your Atlas Index
             } 
             for c, v in zip(chunks, vectors)
@@ -96,7 +106,7 @@ class PDFManager:
         # 2. Add document metadata for filtering
         for chunk in embedded_chunks:
             chunk["document_name"] = document_name
-            chunk["timestamp"] = time.time()
+            chunk["timestamp"] = datetime.now(timezone.utc)
 
         # 3. Save to MongoDB Knowledge Base
         collection = get_knowledge_base_collection()
