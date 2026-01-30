@@ -7,7 +7,8 @@ from core.security import get_current_user_email
 from core.database import get_documents_collection
 from models.domain import DocumentOut
 from services.background.processor import process_document_job
-
+from dotenv import load_dotenv
+load_dotenv()
 router = APIRouter()
 
 # Directory for temporary file storage during processing

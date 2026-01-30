@@ -11,6 +11,8 @@ from services.ingestion.pdf_engine import PDFManager
 import io
 from bson.errors import InvalidId
 from services.ingestion.pdf_engine import PDFManager
+from dotenv import load_dotenv
+load_dotenv()
 router = APIRouter()
 
 async def admin_required(current_user: str = Depends(get_current_user_email)):
@@ -218,11 +220,24 @@ async def update_user(
     current_user: dict = Depends(admin_required)
 ):
     """Update user details"""
-    db =  get_database()
-    
+    users_coll = get_users_collection()
     update_data = {}
+
     if name:
-        update_data["name"] = name
+        update_data["full_name"] = name
+
+    # Fetch existing user so we can cascade email changes if needed
+    try:
+        obj_id = ObjectId(user_id)
+    except InvalidId:
+        raise HTTPException(status_code=400, detail="Invalid User ID format")
+
+    existing_user = await users_coll.find_one({"_id": obj_id})
+    if not existing_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    old_email = existing_user.get("email")
+
     if email:
         update_data["email"] = email
     if plan:
@@ -233,7 +248,37 @@ async def update_user(
             update_data["tokens_remaining"] = 100000
         elif plan == "Enterprise":
             update_data["tokens_remaining"] = 500000
-    
+
+    if not update_data:
+        return {"message": "No changes provided"}
+
+    # 1) Update primary user record
+    result = await users_coll.update_one({"_id": obj_id}, {"$set": update_data})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # 2) If email changed, cascade to related collections
+    new_email = update_data.get("email")
+    if new_email and old_email and new_email != old_email:
+        subs_coll = get_subscriptions_collection()
+        token_usage_coll = get_token_usage_collection()
+        docs_coll = get_documents_collection()
+
+        await subs_coll.update_many(
+            {"user_email": old_email},
+            {"$set": {"user_email": new_email}}
+        )
+        await token_usage_coll.update_many(
+            {"user_email": old_email},
+            {"$set": {"user_email": new_email}}
+        )
+        await docs_coll.update_many(
+            {"owner": old_email},
+            {"$set": {"owner": new_email}}
+        )
+
+    return {"message": "User updated successfully"}
+
 # These endpoints allow you to take direct action on an account, such as banning a user or promoting them to an administrator.
 @router.patch("/users/{user_id}/status")
 async def update_user_account_status(
@@ -289,22 +334,22 @@ async def toggle_admin_privileges(
     status_text = "promoted to admin" if is_admin else "demoted to user"
     return {"message": f"User successfully {status_text}"}
 
-# In some cases, an admin may need to permanently remove a user account.
-@router.delete("/users/{user_id}")
-async def delete_user_account(user_id: str, current_admin: str = Depends(admin_required)):
-    """Permanently delete a user account from the system."""
-    users_coll = get_users_collection()
+# # In some cases, an admin may need to permanently remove a user account.
+# @router.delete("/users/{user_id}")
+# async def delete_user_account(user_id: str, current_admin: str = Depends(admin_required)):
+#     """Permanently delete a user account from the system."""
+#     users_coll = get_users_collection()
     
-    try:
-        obj_id = ObjectId(user_id)
-    except InvalidId:
-        raise HTTPException(status_code=400, detail="Invalid User ID format")
+#     try:
+#         obj_id = ObjectId(user_id)
+#     except InvalidId:
+#         raise HTTPException(status_code=400, detail="Invalid User ID format")
 
-    await users_coll.users.delete_one({"_id": ObjectId(user_id)})
-    await users_coll.subscriptions.delete_many({"user_id": user_id})
-    await users_coll.token_usage.delete_many({"user_id": user_id})
+#     await users_coll.users.delete_one({"_id": ObjectId(user_id)})
+#     await users_coll.subscriptions.delete_many({"user_id": user_id})
+#     await users_coll.token_usage.delete_many({"user_id": user_id})
     
-    return {"message": "User deleted successfully"}
+#     return {"message": "User deleted successfully"}
 
 
 # ---------------------------------------------------------------------------------------------------------------

@@ -1,7 +1,8 @@
 from langchain_core.tools import tool
 from services.ingestion.vector_store import MyCustomVectorStore
 import logging
-
+from dotenv import load_dotenv
+load_dotenv()
 logger = logging.getLogger(__name__)
 
 # Initialize vector store once at module load (singleton pattern)

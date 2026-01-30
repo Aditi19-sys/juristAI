@@ -2,7 +2,8 @@ from pydantic import BaseModel, ConfigDict, Field, BeforeValidator, EmailStr
 from typing import Optional, Annotated, List, Dict, Any
 from datetime import datetime, timezone
 from enum import Enum
-
+from dotenv import load_dotenv
+load_dotenv()
 # Custom Type for MongoDB ObjectIDs
 PyObjectId = Annotated[str, BeforeValidator(str)]
 
@@ -42,7 +43,6 @@ class DocumentStatus(str, Enum):
 # --- USER & AUTH MODELS ---
 
 class UserBase(BaseModel):
-    id: str = Field(alias="_id")
     email: EmailStr
     full_name: Optional[str] = None
     is_admin: bool = False

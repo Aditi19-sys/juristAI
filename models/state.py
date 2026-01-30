@@ -1,7 +1,8 @@
 from typing import Annotated, Sequence, TypedDict, Union
 from langchain_core.messages import BaseMessage
 from langgraph.graph.message import add_messages
-
+from dotenv import load_dotenv
+load_dotenv()
 class AgentState(TypedDict):
     """
     The state of the legal assistant.

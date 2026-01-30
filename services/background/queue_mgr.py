@@ -1,5 +1,6 @@
 import asyncio
-
+from dotenv import load_dotenv
+load_dotenv()
 # The queue stores document processing jobs
 # A 'job' is typically a dictionary containing file_path, user_id, and doc_id
 document_queue = asyncio.Queue()

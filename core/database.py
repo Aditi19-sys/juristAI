@@ -2,6 +2,8 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from core.config import settings
 from pymongo.server_api import ServerApi
 import redis.asyncio as redis
+from dotenv import load_dotenv
+load_dotenv()
 client = None
 database = None
 

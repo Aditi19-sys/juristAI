@@ -81,7 +81,15 @@ async def run_juristway_ai(query: str, thread_id: str):
     result = await agent_executor.ainvoke({"messages": [HumanMessage(content=query)]}, config)
     
     final_answer = result["messages"][-1].content
-    
+    # Extract Source Reference
+    source_pdf = None
+    for msg in reversed(result["messages"]):
+        if msg.type == "tool":
+            match = re.search(r"Source:\s*([\w-]+\.pdf)", msg.content)
+            if match:
+                source_pdf = match.group(1)
+                break
+            
     follow_up_link = None
     for msg in reversed(result["messages"]):
         if msg.type == "tool":

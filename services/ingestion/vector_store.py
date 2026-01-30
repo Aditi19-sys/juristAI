@@ -2,7 +2,8 @@ from pymongo import MongoClient
 from langchain_mongodb import MongoDBAtlasVectorSearch
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from core.config import settings
-
+from dotenv import load_dotenv
+load_dotenv()
 class MyCustomVectorStore:
     def __init__(self, collection_name: str = "knowledge_base"):
         self.client = MongoClient(settings.DB_URL)

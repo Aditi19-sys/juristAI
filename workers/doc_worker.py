@@ -3,7 +3,8 @@ import logging
 from services.background.queue_mgr import document_queue
 from services.ingestion.pdf_engine import PDFManager
 from core.database import get_documents_collection
-
+from dotenv import load_dotenv
+load_dotenv()
 # Setup logging to see what's happening in the background
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("DocumentWorker")

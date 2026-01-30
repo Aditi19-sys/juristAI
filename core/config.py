@@ -2,6 +2,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from pymongo import MongoClient
 import logging
 import os
+# Initialize logger for the config module
+from dotenv import load_dotenv
+load_dotenv()
 logger = logging.getLogger(__name__)
 
 class Settings(BaseSettings):

@@ -7,7 +7,8 @@ from fastapi.security import OAuth2PasswordBearer
 from core.config import settings
 from core.database import get_users_collection
 from models.domain import TokenData
-
+from dotenv import load_dotenv
+load_dotenv()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # FIXED: Added leading slash to ensure the Swagger UI finds the correct route

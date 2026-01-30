@@ -12,6 +12,8 @@ from pydantic import BaseModel, EmailStr
 from datetime import datetime, timedelta, timezone
 import hashlib
 import secrets
+from dotenv import load_dotenv
+load_dotenv()
 
 router = APIRouter()
 

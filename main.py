@@ -10,7 +10,8 @@ from core.config import settings
 from core.database import connect_to_mongo, close_mongo_connection
 from services.ingestion.vector_store import MyCustomVectorStore
 from api.endpoints import iam, auth, assistant, management 
-
+from dotenv import load_dotenv
+load_dotenv()
 # --- 1. PRODUCTION LOGGING CONFIGURATION ---
 logging.basicConfig(
     level=logging.INFO,
@@ -29,6 +30,10 @@ async def lifespan(app: FastAPI):
         logger.info("✅ Database Connected")
         app.state.v_store = MyCustomVectorStore()
         logger.info("✅ Vector Store Initialized")
+
+        # DO THE CLEANUP HERE for the live launch
+        # You can comment this out after the first successful deploy
+        # await db_manager.redis.flushdb()
     except Exception as e:
         logger.critical(f"❌ Startup Failed: {e}")
         raise e
@@ -84,3 +89,8 @@ async def health_check():
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
+
+from langchain_core.tracers.langchain import wait_for_all_tracers
+
+# This forces the script to wait until all traces are uploaded
+wait_for_all_tracers()

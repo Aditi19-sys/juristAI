@@ -7,7 +7,8 @@ from core.database import get_chats_collection
 from core.security import get_current_active_user
 from models.domain import ChatRequest, ChatResponse
 from services.agent.brain import run_juristway_ai
-
+from dotenv import load_dotenv
+load_dotenv()
 router = APIRouter()
 
 @router.post("/chat", response_model=ChatResponse)

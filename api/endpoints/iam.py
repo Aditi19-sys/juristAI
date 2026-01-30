@@ -6,6 +6,8 @@ from core.database import get_users_collection
 from pydantic import BaseModel
 from datetime import datetime, timezone
 import os 
+from dotenv import load_dotenv
+load_dotenv()
 # Initialize logger for this specific module
 logger = logging.getLogger(__name__)
 
@@ -58,7 +60,7 @@ async def register_user(user_data: UserCreate):
         "hashed_password": hashed_password,
         "is_active": True,
         "created_at": datetime.now(timezone.utc),
-        "is_admin": False
+        "is_admin": is_admin
     }
     
     # 4. Insert into database
