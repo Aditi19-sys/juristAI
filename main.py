@@ -27,6 +27,7 @@ logger = logging.getLogger("juristway_main")
 async def lifespan(app: FastAPI):
     try:
         await connect_to_mongo()
+        print("USING DB:", settings.DB_URL)
         logger.info("✅ Database Connected")
         app.state.v_store = MyCustomVectorStore()
         logger.info("✅ Vector Store Initialized")
@@ -73,7 +74,7 @@ app.include_router(management.router, prefix="/api", tags=["Admin Management"])
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["https://api.juristway.com"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

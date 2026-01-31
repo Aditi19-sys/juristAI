@@ -27,6 +27,9 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
             {"email": form_data.username}
         )
     
+    print(f"DEBUG: Attempting login for: '{form_data.username}'")
+    print(f"DEBUG: User found in DB: {True if user else False}")
+    
     if not user or not verify_password(form_data.password, user["hashed_password"]):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
